@@ -54,7 +54,7 @@ func CreateProduct(ctx *gin.Context) {
 
 	tx, err := config.DB.Begin()
 	if err != nil {
-		utils.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to start transavtion")
+		utils.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to start transaction")
 		return
 	}
 
@@ -74,7 +74,7 @@ func CreateProduct(ctx *gin.Context) {
 		return
 	}
 
-	//Putting in phots to the db
+	//Putting in photos to the db
 
 	var photos []models.ProductPhotos
 
