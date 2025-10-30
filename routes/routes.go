@@ -12,9 +12,15 @@ func SetupRouter() *gin.Engine {
 
 	api := r.Group("/pointSwapApi/v1")
 
+	api.GET("/userProfile", middleware.AuthMiddleWare(), handlers.UserProfile)
+
 	api.POST("/register", handlers.Register)
 
+	api.POST("/profileSetUp", middleware.AuthMiddleWare(), handlers.UserProfileSetUp)
+
 	api.POST("/login", handlers.Login)
+
+	api.POST("/location", middleware.AuthMiddleWare(), handlers.GetLocation)
 
 	product := api.Group("/products")
 	{
@@ -32,21 +38,6 @@ func SetupRouter() *gin.Engine {
 		productWant.POST("/:product_id/want", middleware.AuthMiddleWare(), handlers.CreateProductWant)
 		productWant.GET("/:product_id/want", middleware.OptionalAuthMiddleWare(), handlers.GetProductWant)
 		productWant.PUT("/:product_id/want", middleware.AuthMiddleWare(), handlers.UpdateProductWant)
-	}
-
-	conversation := api.Group("/conversations")
-	{
-		conversation.POST("", middleware.AuthMiddleWare(), handlers.CreateConversation)
-		conversation.GET("", middleware.OptionalAuthMiddleWare(), handlers.GetMyConversations)
-		conversation.GET("/:conversation_id", middleware.OptionalAuthMiddleWare(), handlers.GetConversationByID)
-	}
-
-	message := api.Group("/messages")
-	{
-		message.POST("", middleware.AuthMiddleWare(), handlers.SendMessage)
-		message.GET("/:conversation_id", middleware.OptionalAuthMiddleWare(), handlers.GetMessages)
-		message.PUT("/:message_id", middleware.AuthMiddleWare(), handlers.EditMessage)
-		message.DELETE("/:message_id", middleware.AuthMiddleWare(), handlers.DeleteMessage)
 	}
 
 	notification := api.Group("/notifications")

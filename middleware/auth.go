@@ -42,9 +42,9 @@ func AuthMiddleWare() gin.HandlerFunc {
 
 		var user models.Users
 		err = config.DB.QueryRow(`
-		SELECT user_id, username, display_name, phone_number, email, created_at, updated_at FROM users
+		SELECT user_id, email, created_at, updated_at FROM users
 	    WHERE user_id = $1
-		`, claims.UserID).Scan(&user.User_ID, &user.Username, &user.Display_name, &user.Phone_number, &user.Email, &user.Created_at, &user.Updated_at)
+		`, claims.UserID).Scan(&user.User_ID, &user.Email, &user.Created_at, &user.Updated_at)
 
 		if err != nil {
 			utils.ErrorResponse(ctx, http.StatusUnauthorized, "User not found")
@@ -66,7 +66,7 @@ func OptionalAuthMiddleWare() gin.HandlerFunc {
 		}
 
 		bearerToken := strings.Split(authHeader, " ")
-		if len(bearerToken) != 2 || bearerToken[0] != "Bearer" {
+		if len(bearerToken) != 2 || strings.ToLower(bearerToken[0]) != "bearer" {
 			ctx.Next()
 			return
 		}
@@ -80,10 +80,10 @@ func OptionalAuthMiddleWare() gin.HandlerFunc {
 		var user models.Users
 
 		err = config.DB.QueryRow(`
-		   SELECT user_id, username, display_name, phone_number, email, created_at, updated_at FROM users
+		   SELECT user_id, email, created_at, updated_at FROM users
 	       WHERE user_id = $1
 		`, claims.UserID).Scan(
-			&user.User_ID, &user.Username, &user.Display_name, &user.Phone_number, &user.Email, &user.Created_at, &user.Updated_at,
+			&user.User_ID, &user.Email, &user.Created_at, &user.Updated_at,
 		)
 
 		if err == nil {
