@@ -47,11 +47,13 @@ type CreateProductRequest struct {
 	Estimated_size string   ` json:"estimated_size" binding:"required"`
 }
 
+// (Inactive)
+
 //To preview your product before post
 
-type ProductPreviewRequest struct {
-	Image_Url      string    `json:"image_url"`
-	Title          string    `json:"title"`
-	Estimated_size string    `json:"estimated_size"`
-	Seller_ID      uuid.UUID `json:"seller_id"`
-}
+// type ProductPreviewRequest struct {
+// 	Image_Url      string    `json:"image_url"`
+// 	Title          string    `json:"title"`
+// 	Estimated_size string    `json:"estimated_size"`
+// 	Seller_ID      uuid.UUID `json:"seller_id"`
+// }

@@ -20,3 +20,11 @@ type Notifications struct {
 	Created_at              time.Time  `json:"created_at" db:"created_at"`
 	Read_at                 time.Time  `json:"read_at" db:"read_at"`
 }
+
+type MessageNotification struct {
+	ConversationID   uuid.UUID `json:"conversation_id"`
+	MessageID        uuid.UUID `json:"message_id"`
+	SenderID         uuid.UUID `json:"sender_id"`
+	MessageType      string    `json:"message_type"`
+	NotificationType string    `json:"notification_type"`
+}

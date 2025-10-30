@@ -54,7 +54,7 @@ func CreateProduct(ctx *gin.Context) {
 
 	tx, err := config.DB.Begin()
 	if err != nil {
-		utils.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to start transavtion")
+		utils.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to start transaction")
 		return
 	}
 
@@ -74,7 +74,7 @@ func CreateProduct(ctx *gin.Context) {
 		return
 	}
 
-	//Putting in phots to the db
+	//Putting in photos to the db
 
 	var photos []models.ProductPhotos
 
@@ -123,9 +123,8 @@ func CreateProduct(ctx *gin.Context) {
 	}
 
 	utils.SuccessResponse(ctx, http.StatusCreated, "Product Successfully Created", gin.H{
-		"product":       response,
-		"ask_for_wants": true,
-		"product_id":    product.Product_ID,
+		"product":    response,
+		"product_id": product.Product_ID,
 	})
 }
 
@@ -153,11 +152,27 @@ func GetProducts(ctx *gin.Context) {
 	presentUser, exist := ctx.Get("User")
 
 	var currentUserID uuid.UUID
+	var currentUserLocation string
 
 	if exist {
 		if user, ok := presentUser.(models.Users); ok {
 			currentUserID = user.User_ID
+			currentUserLocation = user.Location
 		}
+	}
+
+	//If user doesn't have location then present an empty feed
+
+	if currentUserLocation == "" {
+		utils.SuccessResponse(ctx, http.StatusOK, "Product successfully retrieved", models.InfiniteScrollData{
+			Items: []gin.H{},
+			Meta: models.PaginationMeta{
+				Limit:    limit,
+				Offset:   offset,
+				Has_more: false,
+			},
+		})
+		return
 	}
 
 	//Query for what to see in the main feed
@@ -169,10 +184,11 @@ func GetProducts(ctx *gin.Context) {
 	query = `
 	   SELECT p.product_id, p.title, p.estimated_size, p.created_at, pp.image_url
 	   FROM products p LEFT JOIN product_photos pp ON p.product_id = pp.product_id AND pp.display_order = 1
-	   WHERE p.status = $1
+	   INNER JOIN users u ON p.seller_id  = u.user_id
+	   WHERE p.status = $1 AND u.location = $2
 	`
-	args = append(args, "active")
-	argIndex++
+	args = append(args, "active", currentUserLocation)
+	argIndex += 2
 
 	//exclude current signed in users product from the feed
 
@@ -245,22 +261,8 @@ func GetProducts(ctx *gin.Context) {
 		products = products[:limit]
 	}
 
-	//Calculating next offset
-
-	var nextOffset *int
-	if hasMore {
-		next := offset + limit
-		nextOffset = &next
-	}
-
 	response := models.InfiniteScrollData{
 		Items: products,
-		Meta: models.PaginationMeta{
-			Limit:       limit,
-			Offset:      offset,
-			Has_more:    hasMore,
-			Next_offset: nextOffset,
-		},
 	}
 
 	utils.SuccessResponse(ctx, http.StatusOK, "Products retrieved successfully", response)
