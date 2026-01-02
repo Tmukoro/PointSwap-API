@@ -133,47 +133,27 @@ func CreateProduct(ctx *gin.Context) {
 func GetProducts(ctx *gin.Context) {
 	//parse pagination parameters
 
-	limitStr := ctx.DefaultQuery("limit", "20")
-	offsetStr := ctx.DefaultQuery("offset", "0")
 	category := ctx.Query("category")
-
-	limit, err := strconv.Atoi(limitStr)
-
-	if err != nil || limit <= 0 || limit > 100 {
-		limit = 20
-	}
-
-	offset, err := strconv.Atoi(offsetStr)
-
-	if err != nil || offset < 0 {
-		offset = 0
-	}
 
 	presentUser, exist := ctx.Get("User")
 
 	var currentUserID uuid.UUID
-	var currentUserLocation string
+	// var currentUserLocation string
 
 	if exist {
 		if user, ok := presentUser.(models.Users); ok {
 			currentUserID = user.User_ID
-			currentUserLocation = user.Location
+			// currentUserLocation = user.Location
 		}
 	}
 
 	//If user doesn't have location then present an empty feed
 
-	if currentUserLocation == "" {
-		utils.SuccessResponse(ctx, http.StatusOK, "Product successfully retrieved", models.InfiniteScrollData{
-			Items: []gin.H{},
-			Meta: models.PaginationMeta{
-				Limit:    limit,
-				Offset:   offset,
-				Has_more: false,
-			},
-		})
-		return
-	}
+	// if currentUserLocation == "" {
+	// 	utils.SuccessResponse(ctx, http.StatusOK, "Product successfully retrieved", gin.H{
+	// 	})
+	// 	return
+	// }
 
 	//Query for what to see in the main feed
 
@@ -185,10 +165,10 @@ func GetProducts(ctx *gin.Context) {
 	   SELECT p.product_id, p.title, p.estimated_size, p.created_at, pp.image_url
 	   FROM products p LEFT JOIN product_photos pp ON p.product_id = pp.product_id AND pp.display_order = 1
 	   INNER JOIN users u ON p.seller_id  = u.user_id
-	   WHERE p.status = $1 AND u.location = $2
+	   WHERE p.status = $1
 	`
-	args = append(args, "active", currentUserLocation)
-	argIndex += 2
+	args = append(args, "active")
+	argIndex += 1 //+2 if you add location filtering
 
 	//exclude current signed in users product from the feed
 
@@ -206,13 +186,7 @@ func GetProducts(ctx *gin.Context) {
 		argIndex++
 	}
 
-	query += " ORDER BY p.created_at DESC LIMIT $" + strconv.Itoa(argIndex)
-	args = append(args, limit+1) // this is to check if there are more items
-	argIndex++
-
-	query += " OFFSET $" + strconv.Itoa(argIndex)
-	args = append(args, offset)
-	argIndex++
+	query += " ORDER BY p.created_at DESC"
 
 	rows, err := config.DB.Query(query, args...)
 
@@ -256,13 +230,9 @@ func GetProducts(ctx *gin.Context) {
 	}
 
 	//Checking if there are more items when scrolling
-	hasMore := len(products) > limit
-	if hasMore {
-		products = products[:limit]
-	}
 
-	response := models.InfiniteScrollData{
-		Items: products,
+	response := gin.H{
+		"items": products,
 	}
 
 	utils.SuccessResponse(ctx, http.StatusOK, "Products retrieved successfully", response)
