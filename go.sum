@@ -6,6 +6,10 @@ github.com/PuerkitoBio/urlesc v0.0.0-20170810143723-de5bf2ad4578 h1:d+Bc7a5rLufV
 github.com/PuerkitoBio/urlesc v0.0.0-20170810143723-de5bf2ad4578/go.mod h1:uGdkoq3SwY9Y+13GIhn11/XLaGBb4BfwItxLd5jeuXE=
 github.com/ably/ably-go v1.2.22 h1:7GZG3Sq42lg9oC5iutGtmOG5fsbPrriyScQj20LBN3o=
 github.com/ably/ably-go v1.2.22/go.mod h1:wUxedacwNo9SU1L60VnjXDZeSP/dkyMHk2toig00XD0=
+github.com/ably/ably-go v1.3.0 h1:yMW8an7KwBKNEVV32l5aRml1WB4Rs7jaLFgaeeWwyH8=
+github.com/ably/ably-go v1.3.0/go.mod h1:cOjcfJ3GlI8XmKJ3oe4VecoOhei+RbWryQp+TKEIcgs=
+github.com/ably/vcdiff-go v0.0.2 h1:zEtkNUtcwNnoScnkEFptYl5hEwEMZcacWdXc56qB4Ws=
+github.com/ably/vcdiff-go v0.0.2/go.mod h1:y8j31IVCZtYwwwLZMGMwdrkP6RY2mDi3tM9zZ/X1/do=
 github.com/bytedance/sonic v1.11.6 h1:oUp34TzMlL+OY1OUWxHqsdkgC/Zfc85zGqw9siXjrc0=
 github.com/bytedance/sonic v1.11.6/go.mod h1:LysEHSvpvDySVdC2f87zGWf6CIKJcAvqab1ZaiQtds4=
 github.com/bytedance/sonic v1.14.0 h1:/OfKt8HFw0kh2rj8N0F6C/qPGRESq0BbaNZgcNXXzQQ=

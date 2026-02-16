@@ -4,17 +4,15 @@ import (
 	"log"
 	"os"
 	"postswapapi/config"
+	"postswapapi/handlers"
+	"postswapapi/repository"
 	"postswapapi/routes"
+	"postswapapi/services"
 
 	"github.com/joho/godotenv"
 
 	_ "github.com/lib/pq"
 )
-
-//@title PointSwap API
-//@version 1.0
-
-//@
 
 func main() {
 	err := godotenv.Load()
@@ -25,6 +23,16 @@ func main() {
 
 	config.ConnectToDb()
 
+	// Initialize message components
+	messageRepo := repository.NewMessageRepository(config.DB)
+	messageService, err := services.NewMessageService(messageRepo)
+	if err != nil {
+		log.Fatal("Failed to initialize message service:", err)
+	}
+	defer messageService.Close()
+
+	messageHandler := handlers.NewMessageHandler(messageService)
+
 	port := os.Getenv("PORT")
 
 	if port == "" {
@@ -33,7 +41,7 @@ func main() {
 
 	log.Println("Server running on port ", port)
 
-	r := routes.SetupRouter()
+	r := routes.SetupRouter(messageHandler)
 	r.Run(":" + port)
 
 }
