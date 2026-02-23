@@ -30,6 +30,9 @@ type ProductPhotos struct {
 type ProductWithSeller struct {
 	Product_ID     uuid.UUID       `json:"product_id"`
 	Seller         Users           `json:"sellers"`
+	FirstName      Users           `json:"first_name"`
+	LastName       Users           `json:"last_name"`
+	AvatarUrl      Users           `json:"avatar_url"`
 	Title          string          `json:"title"`
 	Category       string          `json:"category"`
 	Estimated_size string          `json:"estimated_size"`

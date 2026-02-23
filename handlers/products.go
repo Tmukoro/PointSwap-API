@@ -256,11 +256,11 @@ func GetProductById(ctx *gin.Context) {
 
 	err = config.DB.QueryRow(`
 	    SELECT p.product_id, p.seller_id, p.title, p.category, p.estimated_size,
-		p.status, p.created_at, p.updated_at
+		p.status, p.created_at, p.updated_at, u.first_name, u.last_name, u.avatar_url
 		FROM products p JOIN users u ON p.seller_id = user_id
 		WHERE p.product_id = $1
 	`, productID).Scan(&product.Product_ID, &product.Seller.User_ID, &product.Title, &product.Category, &product.Estimated_size,
-		&product.Status, &product.Created_at, &product.Updated_at)
+		&product.Status, &product.Created_at, &product.Updated_at, &product.Seller.First_Name, &product.Seller.Last_Name, &product.Seller.Avatar_url)
 
 	if err == sql.ErrNoRows {
 		utils.ErrorResponse(ctx, http.StatusNotFound, "Product not found")
@@ -268,7 +268,7 @@ func GetProductById(ctx *gin.Context) {
 	}
 
 	if err != nil {
-		utils.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to fetch product")
+		utils.ErrorResponse(ctx, http.StatusInternalServerError, err.Error())
 		return
 	}
 
