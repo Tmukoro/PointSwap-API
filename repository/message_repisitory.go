@@ -21,13 +21,60 @@ func NewMessageRepository(db *sql.DB) *MessageRepository {
 func (r *MessageRepository) GetOrCreateConversation(user1ID, user2ID uuid.UUID) (uuid.UUID, error) {
 	var conversationID uuid.UUID
 
-	query := `SELECT get_or_create_conversation($1, $2)`
+	// Find conversation where BOTH users are participants and ONLY these 2 users
+	query := `
+        SELECT c.id 
+        FROM conversations c
+        WHERE EXISTS (
+            SELECT 1 FROM conversation_participants cp1 
+            WHERE cp1.conversation_id = c.id AND cp1.user_id = $1
+        )
+        AND EXISTS (
+            SELECT 1 FROM conversation_participants cp2 
+            WHERE cp2.conversation_id = c.id AND cp2.user_id = $2
+        )
+        AND (
+            SELECT COUNT(*) FROM conversation_participants cp 
+            WHERE cp.conversation_id = c.id
+        ) = 2
+        LIMIT 1
+    `
+
 	err := r.db.QueryRow(query, user1ID, user2ID).Scan(&conversationID)
-	if err != nil {
-		return uuid.Nil, fmt.Errorf("failed to get or create conversation: %w", err)
+
+	// If conversation exists, return it
+	if err == nil {
+		return conversationID, nil
 	}
 
-	return conversationID, nil
+	// If not found (sql.ErrNoRows), create new conversation
+	if err == sql.ErrNoRows {
+		// Create new conversation
+		insertConvQuery := `
+            INSERT INTO conversations DEFAULT VALUES 
+            RETURNING id
+        `
+		err = r.db.QueryRow(insertConvQuery).Scan(&conversationID)
+		if err != nil {
+			return uuid.Nil, fmt.Errorf("failed to create conversation: %w", err)
+		}
+
+		// Add both participants
+		insertParticipantsQuery := `
+            INSERT INTO conversation_participants (id, conversation_id, user_id)
+            VALUES 
+                (gen_random_uuid(), $1, $2),
+                (gen_random_uuid(), $1, $3)
+        `
+		_, err = r.db.Exec(insertParticipantsQuery, conversationID, user1ID, user2ID)
+		if err != nil {
+			return uuid.Nil, fmt.Errorf("failed to add participants: %w", err)
+		}
+
+		return conversationID, nil
+	}
+
+	return uuid.Nil, fmt.Errorf("failed to get or create conversation: %w", err)
 }
 
 // CreateMessage saves a new message to the database

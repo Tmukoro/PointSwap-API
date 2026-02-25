@@ -22,6 +22,41 @@ func NewMessageHandler(service *services.MessageService) *MessageHandler {
 	}
 }
 
+// CreateConversation creates a conversation without sending a message
+// POST /api/conversations
+func (h *MessageHandler) CreateConversation(c *gin.Context) {
+	senderID, err := getUserIDFromContext(c)
+	if err != nil {
+		utils.ErrorResponse(c, http.StatusUnauthorized, "unauthorized")
+		return
+	}
+
+	var req struct {
+		RecipientID uuid.UUID `json:"recipient_id" binding:"required"`
+	}
+
+	if err := c.ShouldBindJSON(&req); err != nil {
+		utils.ErrorResponse(c, http.StatusBadRequest, err.Error())
+		return
+	}
+
+	// Prevent creating conversation with yourself
+	if senderID == req.RecipientID {
+		utils.ErrorResponse(c, http.StatusBadRequest, "cannot create conversation with yourself")
+		return
+	}
+
+	conversationID, err := h.service.GetOrCreateConversation(senderID, req.RecipientID)
+	if err != nil {
+		utils.ErrorResponse(c, http.StatusInternalServerError, "failed to create conversation")
+		return
+	}
+
+	utils.SuccessResponse(c, http.StatusCreated, "conversation created", gin.H{
+		"conversation_id": conversationID,
+	})
+}
+
 // SendMessage creates a new conversation and sends first message
 // POST /api/messages
 func (h *MessageHandler) SendMessage(c *gin.Context) {

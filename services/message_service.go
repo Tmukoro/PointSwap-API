@@ -6,6 +6,7 @@ import (
 	"os"
 	"postswapapi/models"
 	"postswapapi/repository"
+	"time"
 
 	"github.com/ably/ably-go/ably"
 	"github.com/google/uuid"
@@ -40,6 +41,15 @@ func NewMessageService(repo *repository.MessageRepository) (*MessageService, err
 // Close cleanly closes the Ably connection
 func (s *MessageService) Close() {
 	s.ablyClient.Close()
+}
+
+// GetOrCreateConversation finds or creates a conversation
+func (s *MessageService) GetOrCreateConversation(user1ID, user2ID uuid.UUID) (uuid.UUID, error) {
+	conversationID, err := s.repo.GetOrCreateConversation(user1ID, user2ID)
+	if err != nil {
+		return uuid.Nil, fmt.Errorf("failed to get or create conversation: %w", err)
+	}
+	return conversationID, nil
 }
 
 // SendMessage creates a new message or starts a conversation
@@ -102,7 +112,7 @@ func (s *MessageService) publishMessageToAbly(conversationID uuid.UUID, message 
 		"conversation_id": message.ConversationID.String(),
 		"sender_id":       message.SenderID.String(),
 		"message_text":    message.MessageText,
-		"created_at":      message.CreatedAt,
+		"created_at":      message.CreatedAt.Format(time.RFC3339),
 	}
 
 	// Publish to the channel

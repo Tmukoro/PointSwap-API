@@ -17,6 +17,8 @@ func SetupRouter(messageHandler *handlers.MessageHandler) *gin.Engine {
 	api.POST("/profileSetUp", middleware.AuthMiddleWare(), handlers.UserProfileSetUp)
 	api.POST("/login", handlers.Login)
 	api.POST("/location", middleware.AuthMiddleWare(), handlers.GetLocation)
+	api.PUT("/users/status", middleware.AuthMiddleWare(), handlers.UpdateOnlineStatus)
+	api.GET("/users/:user_id/status", middleware.OptionalAuthMiddleWare(), handlers.GetUserStatus)
 
 	//Product and feed
 	product := api.Group("/products")
@@ -53,6 +55,7 @@ func SetupRouter(messageHandler *handlers.MessageHandler) *gin.Engine {
 
 	conversations := api.Group("/conversations")
 	{
+		conversations.POST("", middleware.AuthMiddleWare(), messageHandler.CreateConversation)
 		conversations.GET("", middleware.AuthMiddleWare(), messageHandler.GetUserConversations)
 		conversations.POST("/:conversation_id/messages", middleware.AuthMiddleWare(), messageHandler.SendMessageToConversation)
 		conversations.GET("/:conversation_id/messages", middleware.AuthMiddleWare(), messageHandler.GetConversationMessages)

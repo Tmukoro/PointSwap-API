@@ -268,3 +268,63 @@ func UserProfile(ctx *gin.Context) {
 	utils.SuccessResponse(ctx, http.StatusOK, "User Details Fetched", User)
 
 }
+
+// updates user's online status
+func UpdateOnlineStatus(c *gin.Context) {
+	userID, err := getUserIDFromContext(c)
+	if err != nil {
+		utils.ErrorResponse(c, http.StatusUnauthorized, "unauthorized")
+		return
+	}
+
+	var req struct {
+		IsOnline bool `json:"is_online" binding:"required"`
+	}
+
+	if err := c.ShouldBindJSON(&req); err != nil {
+		utils.ErrorResponse(c, http.StatusBadRequest, err.Error())
+		return
+	}
+
+	// Update online status and last_seen
+	query := `
+        UPDATE users 
+        SET is_online = $1, last_seen = NOW(), updated_at = NOW()
+        WHERE user_id = $2
+    `
+
+	_, err = config.DB.Exec(query, req.IsOnline, userID)
+	if err != nil {
+		utils.ErrorResponse(c, http.StatusInternalServerError, "failed to update status")
+		return
+	}
+
+	utils.SuccessResponse(c, http.StatusOK, "status updated", nil)
+}
+
+// gets a user's online status
+func GetUserStatus(c *gin.Context) {
+	userID := c.Param("user_id")
+
+	var result struct {
+		IsOnline bool       `db:"is_online"`
+		LastSeen *time.Time `db:"last_seen"`
+	}
+
+	query := `
+        SELECT is_online, last_seen 
+        FROM users 
+        WHERE user_id = $1
+    `
+
+	err := config.DB.QueryRow(query, userID).Scan(&result.IsOnline, &result.LastSeen)
+	if err != nil {
+		utils.ErrorResponse(c, http.StatusNotFound, "user not found")
+		return
+	}
+
+	utils.SuccessResponse(c, http.StatusOK, "status retrieved", gin.H{
+		"is_online": result.IsOnline,
+		"last_seen": result.LastSeen,
+	})
+}
