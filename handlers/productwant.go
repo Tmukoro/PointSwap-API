@@ -81,7 +81,8 @@ func CreateProductWant(ctx *gin.Context) {
 	now := time.Now()
 
 	//creating what you want in return request
-	if err == sql.ErrNoRows {
+	switch err {
+	case sql.ErrNoRows:
 		want = models.ProductWants{
 			WantID:         uuid.New(),
 			ProductID:      uuid.MustParse(productID),
@@ -97,9 +98,8 @@ func CreateProductWant(ctx *gin.Context) {
             VALUES($1, $2, $3, $4, $5, $6, $7) 
         `, want.WantID, want.ProductID, want.WantUserID, want.WantedCategory, want.WantedSize, want.CreatedAt,
 			want.UpdatedAt)
-	}
-	//if there is update it
-	if err == nil {
+	case nil:
+		//if there is update it
 		want.WantID = uuid.MustParse(existWantID)
 		want.ProductID = uuid.MustParse(productID)
 		want.WantedCategory = req.WantedCategory

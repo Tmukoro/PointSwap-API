@@ -53,7 +53,7 @@ func (s *MessageService) GetOrCreateConversation(user1ID, user2ID uuid.UUID) (uu
 }
 
 // SendMessage creates a new message or starts a conversation
-func (s *MessageService) SendMessage(senderID, recipientID uuid.UUID, messageText string) (*models.Message, error) {
+func (s *MessageService) SendMessage(senderID, recipientID uuid.UUID, messageText string, imageURL *string) (*models.Message, error) {
 	// Get or create conversation
 	conversationID, err := s.repo.GetOrCreateConversation(senderID, recipientID)
 	if err != nil {
@@ -61,7 +61,7 @@ func (s *MessageService) SendMessage(senderID, recipientID uuid.UUID, messageTex
 	}
 
 	// Save message to database
-	message, err := s.repo.CreateMessage(conversationID, senderID, messageText)
+	message, err := s.repo.CreateMessage(conversationID, senderID, messageText, imageURL)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create message: %w", err)
 	}
@@ -76,7 +76,8 @@ func (s *MessageService) SendMessage(senderID, recipientID uuid.UUID, messageTex
 }
 
 // SendMessageToConversation sends a message to an existing conversation
-func (s *MessageService) SendMessageToConversation(conversationID, senderID uuid.UUID, messageText string) (*models.Message, error) {
+// Update SendMessageToConversation to accept imageURL
+func (s *MessageService) SendMessageToConversation(conversationID, senderID uuid.UUID, messageText string, imageURL *string) (*models.Message, error) {
 	// Verify sender is in conversation
 	isParticipant, err := s.repo.VerifyUserInConversation(conversationID, senderID)
 	if err != nil {
@@ -87,7 +88,7 @@ func (s *MessageService) SendMessageToConversation(conversationID, senderID uuid
 	}
 
 	// Save message to database
-	message, err := s.repo.CreateMessage(conversationID, senderID, messageText)
+	message, err := s.repo.CreateMessage(conversationID, senderID, messageText, imageURL)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create message: %w", err)
 	}
@@ -102,11 +103,9 @@ func (s *MessageService) SendMessageToConversation(conversationID, senderID uuid
 
 // publishMessageToAbly publishes a message to the conversation's Ably channel
 func (s *MessageService) publishMessageToAbly(conversationID uuid.UUID, message *models.Message) error {
-	// Get the Ably channel for this conversation
 	channelName := fmt.Sprintf("conversation:%s", conversationID.String())
 	channel := s.ablyClient.Channels.Get(channelName)
 
-	// Create the payload to send
 	payload := map[string]interface{}{
 		"id":              message.ID.String(),
 		"conversation_id": message.ConversationID.String(),
@@ -115,7 +114,11 @@ func (s *MessageService) publishMessageToAbly(conversationID uuid.UUID, message 
 		"created_at":      message.CreatedAt.Format(time.RFC3339),
 	}
 
-	// Publish to the channel
+	// Add image_url if present
+	if message.ImageUrl != nil {
+		payload["image_url"] = *message.ImageUrl
+	}
+
 	err := channel.Publish(context.Background(), "new_message", payload)
 	if err != nil {
 		return fmt.Errorf("failed to publish to ably: %w", err)

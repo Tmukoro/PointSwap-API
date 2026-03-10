@@ -78,20 +78,21 @@ func (r *MessageRepository) GetOrCreateConversation(user1ID, user2ID uuid.UUID) 
 }
 
 // CreateMessage saves a new message to the database
-func (r *MessageRepository) CreateMessage(conversationID, senderID uuid.UUID, messageText string) (*models.Message, error) {
+func (r *MessageRepository) CreateMessage(conversationID, senderID uuid.UUID, messageText string, imageURL *string) (*models.Message, error) {
 	message := &models.Message{
 		ID:             uuid.New(),
 		ConversationID: conversationID,
 		SenderID:       senderID,
 		MessageText:    messageText,
+		ImageUrl:       imageURL, // Add this
 		IsRead:         false,
 		CreatedAt:      time.Now(),
 	}
 
 	query := `
-        INSERT INTO messages (id, conversation_id, sender_id, message_text, is_read, created_at)
-        VALUES ($1, $2, $3, $4, $5, $6)
-        RETURNING id, conversation_id, sender_id, message_text, is_read, created_at
+        INSERT INTO messages (id, conversation_id, sender_id, message_text, image_url, is_read, created_at)
+        VALUES ($1, $2, $3, $4, $5, $6, $7)
+        RETURNING id, conversation_id, sender_id, message_text, image_url, is_read, created_at
     `
 
 	err := r.db.QueryRow(query,
@@ -99,6 +100,7 @@ func (r *MessageRepository) CreateMessage(conversationID, senderID uuid.UUID, me
 		message.ConversationID,
 		message.SenderID,
 		message.MessageText,
+		message.ImageUrl, // Add this
 		message.IsRead,
 		message.CreatedAt,
 	).Scan(
@@ -106,6 +108,7 @@ func (r *MessageRepository) CreateMessage(conversationID, senderID uuid.UUID, me
 		&message.ConversationID,
 		&message.SenderID,
 		&message.MessageText,
+		&message.ImageUrl, // Add this
 		&message.IsRead,
 		&message.CreatedAt,
 	)

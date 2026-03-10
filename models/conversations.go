@@ -28,6 +28,7 @@ type Message struct {
 	ConversationID uuid.UUID `json:"conversation_id" db:"conversation_id"`
 	SenderID       uuid.UUID `json:"sender_id" db:"sender_id"`
 	MessageText    string    `json:"message_text" db:"message_text"`
+	ImageUrl       *string   `json:"image_url,omitempty" db:"image_url"`
 	IsRead         bool      `json:"is_read" db:"is_read"`
 	CreatedAt      time.Time `json:"created_at" db:"created_at"`
 	DeletedAt      time.Time `json:"deleted_at" db:"deleted_at"`
@@ -63,9 +64,11 @@ type MessageWithSender struct {
 type CreateMessageRequest struct {
 	RecipientID uuid.UUID `json:"recipient_id" binding:"required"`
 	MessageText string    `json:"message_text" binding:"required,min=1,max=5000"`
+	ImageUrl    *string   `json:"image_url"`
 }
 
 // SendMessageRequest for sending to existing conversation
 type SendMessageRequest struct {
-	MessageText string `json:"message_text" binding:"required,min=1,max=5000"`
+	MessageText string  `json:"message_text" binding:"required,min=1,max=5000"`
+	ImageUrl    *string `json:"image_url"`
 }

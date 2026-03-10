@@ -45,8 +45,8 @@ type PotentialMatches struct {
 //API request to create and update the product you want
 
 type CreateProductWantRequest struct {
-	WantedCategory string  `json:"wanted_category" binding:"required"`
-	WantedSize     *string `json:"wanted_size"`
+	WantedCategory string  `json:"wanted_category"`
+	WantedSize     *string `json:"wanted_size" binding:"required"`
 }
 
 type UpdateProductWantRequest struct {

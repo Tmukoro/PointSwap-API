@@ -79,7 +79,13 @@ func (h *MessageHandler) SendMessage(c *gin.Context) {
 		return
 	}
 
-	message, err := h.service.SendMessage(senderID, req.RecipientID, req.MessageText)
+	// Validate: must have either text or image
+	if req.MessageText == "" && req.ImageUrl == nil {
+		utils.ErrorResponse(c, http.StatusBadRequest, "message must have text or image")
+		return
+	}
+
+	message, err := h.service.SendMessage(senderID, req.RecipientID, req.MessageText, req.ImageUrl)
 	if err != nil {
 		utils.ErrorResponse(c, http.StatusInternalServerError, "failed to send message")
 		return
@@ -112,7 +118,13 @@ func (h *MessageHandler) SendMessageToConversation(c *gin.Context) {
 		return
 	}
 
-	message, err := h.service.SendMessageToConversation(conversationID, senderID, req.MessageText)
+	// Validate: must have either text or image
+	if req.MessageText == "" && req.ImageUrl == nil {
+		utils.ErrorResponse(c, http.StatusBadRequest, "message must have text or image")
+		return
+	}
+
+	message, err := h.service.SendMessageToConversation(conversationID, senderID, req.MessageText, req.ImageUrl)
 	if err != nil {
 		utils.ErrorResponse(c, http.StatusInternalServerError, err.Error())
 		return

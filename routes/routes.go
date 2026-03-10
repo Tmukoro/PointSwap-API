@@ -1,6 +1,7 @@
 package routes
 
 import (
+	"log"
 	"postswapapi/handlers"
 	"postswapapi/middleware"
 
@@ -9,6 +10,10 @@ import (
 
 func SetupRouter(messageHandler *handlers.MessageHandler) *gin.Engine {
 	r := gin.Default()
+	uploadHandler, err := handlers.NewUploadHandler()
+	if err != nil {
+		log.Fatal("Failed to initialize upload handler:", err)
+	}
 
 	//User authentication
 	api := r.Group("/pointSwapApi/v1")
@@ -61,6 +66,8 @@ func SetupRouter(messageHandler *handlers.MessageHandler) *gin.Engine {
 		conversations.GET("/:conversation_id/messages", middleware.AuthMiddleWare(), messageHandler.GetConversationMessages)
 		conversations.PUT("/:conversation_id/read", middleware.AuthMiddleWare(), messageHandler.MarkConversationAsRead)
 	}
+
+	api.POST("/upload/image", middleware.AuthMiddleWare(), uploadHandler.UploadImage)
 
 	api.GET("/me", middleware.AuthMiddleWare())
 
