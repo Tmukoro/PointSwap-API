@@ -79,6 +79,11 @@ func (r *MessageRepository) GetOrCreateConversation(user1ID, user2ID uuid.UUID) 
 
 // CreateMessage saves a new message to the database
 func (r *MessageRepository) CreateMessage(conversationID, senderID uuid.UUID, messageText string, imageURL *string) (*models.Message, error) {
+	// If there's an image but no text, set default text
+	if messageText == "" && imageURL != nil {
+		messageText = "📷 Image"
+	}
+
 	message := &models.Message{
 		ID:             uuid.New(),
 		ConversationID: conversationID,
@@ -132,6 +137,7 @@ func (r *MessageRepository) GetConversationMessages(conversationID uuid.UUID, li
             CONCAT(u.first_name, ' ', u.last_name) as sender_name,
             u.avatar_url as sender_avatar,
             m.message_text,
+			m.image_url,
             m.is_read,
             m.created_at,
             m.deleted_at
@@ -158,6 +164,7 @@ func (r *MessageRepository) GetConversationMessages(conversationID uuid.UUID, li
 			&msg.SenderName,
 			&msg.SenderAvatar,
 			&msg.MessageText,
+			&msg.ImageUrl,
 			&msg.IsRead,
 			&msg.CreatedAt,
 			&msg.DeletedAt,

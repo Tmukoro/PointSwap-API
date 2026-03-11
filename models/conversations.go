@@ -55,6 +55,7 @@ type MessageWithSender struct {
 	SenderName     string     `json:"sender_name" db:"sender_name"`
 	SenderAvatar   *string    `json:"sender_avatar,omitempty" db:"sender_avatar"`
 	MessageText    string     `json:"message_text" db:"message_text"`
+	ImageUrl       *string    `json:"image_url" db:"image_url"`
 	IsRead         bool       `json:"is_read" db:"is_read"`
 	CreatedAt      time.Time  `json:"created_at" db:"created_at"`
 	DeletedAt      *time.Time `json:"deleted_at,omitempty" db:"deleted_at"`
@@ -69,6 +70,6 @@ type CreateMessageRequest struct {
 
 // SendMessageRequest for sending to existing conversation
 type SendMessageRequest struct {
-	MessageText string  `json:"message_text" binding:"required,min=1,max=5000"`
+	MessageText string  `json:"message_text"`
 	ImageUrl    *string `json:"image_url"`
 }

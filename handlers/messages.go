@@ -119,7 +119,7 @@ func (h *MessageHandler) SendMessageToConversation(c *gin.Context) {
 	}
 
 	// Validate: must have either text or image
-	if req.MessageText == "" && req.ImageUrl == nil {
+	if (req.MessageText == "" || req.MessageText == " ") && (req.ImageUrl == nil || *req.ImageUrl == "") {
 		utils.ErrorResponse(c, http.StatusBadRequest, "message must have text or image")
 		return
 	}
