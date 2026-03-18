@@ -7,6 +7,7 @@ import (
 	"postswapapi/services"
 	"postswapapi/utils"
 	"strconv"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
@@ -60,7 +61,6 @@ func (h *MessageHandler) CreateConversation(c *gin.Context) {
 // SendMessage creates a new conversation and sends first message
 // POST /api/messages
 func (h *MessageHandler) SendMessage(c *gin.Context) {
-	// Get authenticated user ID from context (set by your auth middleware)
 	senderID, err := getUserIDFromContext(c)
 	if err != nil {
 		utils.ErrorResponse(c, http.StatusUnauthorized, "unauthorized")
@@ -73,19 +73,19 @@ func (h *MessageHandler) SendMessage(c *gin.Context) {
 		return
 	}
 
-	// Prevent sending message to yourself
 	if senderID == req.RecipientID {
 		utils.ErrorResponse(c, http.StatusBadRequest, "cannot send message to yourself")
 		return
 	}
 
 	// Validate: must have either text or image
-	if req.MessageText == "" && req.ImageUrl == nil {
+	trimmedText := strings.TrimSpace(req.MessageText)
+	if trimmedText == "" && (req.ImageUrl == nil || *req.ImageUrl == "") {
 		utils.ErrorResponse(c, http.StatusBadRequest, "message must have text or image")
 		return
 	}
 
-	message, err := h.service.SendMessage(senderID, req.RecipientID, req.MessageText, req.ImageUrl)
+	message, err := h.service.SendMessage(senderID, req.RecipientID, trimmedText, req.ImageUrl)
 	if err != nil {
 		utils.ErrorResponse(c, http.StatusInternalServerError, "failed to send message")
 		return
@@ -112,19 +112,24 @@ func (h *MessageHandler) SendMessageToConversation(c *gin.Context) {
 		return
 	}
 
-	var req models.SendMessageRequest
+	var req struct {
+		MessageText string  `json:"message_text"`
+		ImageURL    *string `json:"image_url"`
+	}
+
 	if err := c.ShouldBindJSON(&req); err != nil {
 		utils.ErrorResponse(c, http.StatusBadRequest, err.Error())
 		return
 	}
 
-	// Validate: must have either text or image
-	if (req.MessageText == "" || req.MessageText == " ") && (req.ImageUrl == nil || *req.ImageUrl == "") {
+	// Validate: must have either text or image (but trim text first)
+	trimmedText := strings.TrimSpace(req.MessageText)
+	if trimmedText == "" && (req.ImageURL == nil || *req.ImageURL == "") {
 		utils.ErrorResponse(c, http.StatusBadRequest, "message must have text or image")
 		return
 	}
 
-	message, err := h.service.SendMessageToConversation(conversationID, senderID, req.MessageText, req.ImageUrl)
+	message, err := h.service.SendMessageToConversation(conversationID, senderID, trimmedText, req.ImageURL)
 	if err != nil {
 		utils.ErrorResponse(c, http.StatusInternalServerError, err.Error())
 		return
