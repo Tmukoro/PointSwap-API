@@ -29,6 +29,8 @@ type Message struct {
 	SenderID       uuid.UUID `json:"sender_id" db:"sender_id"`
 	MessageText    string    `json:"message_text" db:"message_text"`
 	ImageUrl       *string   `json:"image_url,omitempty" db:"image_url"`
+	AudioURL       *string   `json:"audio_url,omitempty" db:"audio_url"`
+	AudioDuration  *int      `json:"audio_duration,omitempty" db:"audio_duration"`
 	IsRead         bool      `json:"is_read" db:"is_read"`
 	CreatedAt      time.Time `json:"created_at" db:"created_at"`
 	DeletedAt      time.Time `json:"deleted_at" db:"deleted_at"`
@@ -56,6 +58,8 @@ type MessageWithSender struct {
 	SenderAvatar   *string    `json:"sender_avatar,omitempty" db:"sender_avatar"`
 	MessageText    string     `json:"message_text" db:"message_text"`
 	ImageUrl       *string    `json:"image_url" db:"image_url"`
+	AudioURL       *string    `json:"audio_url" db:"audio_url"`
+	AudioDuration  *int       `json:"audio_duration" db:"audio_duration"`
 	IsRead         bool       `json:"is_read" db:"is_read"`
 	CreatedAt      time.Time  `json:"created_at" db:"created_at"`
 	DeletedAt      *time.Time `json:"deleted_at,omitempty" db:"deleted_at"`

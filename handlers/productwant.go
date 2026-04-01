@@ -2,9 +2,11 @@ package handlers
 
 import (
 	"database/sql"
+	"fmt"
 	"net/http"
 	"postswapapi/config"
 	"postswapapi/models"
+	"postswapapi/services"
 	"postswapapi/utils"
 	"time"
 
@@ -121,6 +123,17 @@ func CreateProductWant(ctx *gin.Context) {
 		"want_id": want.WantID,
 	})
 
+	// NEW: Find and notify matches after want is saved
+	// Run in goroutine so it doesn't block the response
+	go func() {
+		productIDParsed, _ := uuid.Parse(productID)
+		notificationService := services.NewNotificationService(config.DB)
+		err := notificationService.FindAndNotifyProductMatches(productIDParsed)
+		if err != nil {
+			fmt.Printf("Error finding matches: %v\n", err)
+		}
+	}()
+
 }
 
 //get product wants for editing purposes
@@ -135,7 +148,7 @@ func GetProductWant(ctx *gin.Context) {
 		return
 	}
 
-	user, ok := presentUser.(models.Users)
+	_, ok := presentUser.(models.Users)
 
 	if !ok {
 		utils.ErrorResponse(ctx, http.StatusInternalServerError, "Invalid User")
@@ -147,8 +160,8 @@ func GetProductWant(ctx *gin.Context) {
 	err := config.DB.QueryRow(`
         SELECT pw.want_id, pw.product_id, pw.wanted_category, pw.wanted_size, pw.created_at, pw.updated_at
         FROM product_wants pw JOIN products p ON pw.product_id = p.product_id
-        WHERE pw.product_id = $1 AND p.seller_id = $2
-    `, productID, user.User_ID).Scan(&want.WantID, &want.ProductID, &want.WantedCategory, &want.WantedSize,
+        WHERE pw.product_id = $1
+    `, productID).Scan(&want.WantID, &want.ProductID, &want.WantedCategory, &want.WantedSize,
 		&want.CreatedAt, &want.UpdatedAt)
 
 	if err == sql.ErrNoRows {
@@ -218,9 +231,16 @@ func UpdateProductWant(ctx *gin.Context) {
 		return
 	}
 
-	//trigger notficiation for new want
-
-	go TriggerNotificationsForNewWant(uuid.MustParse(productID), user.User_ID, req.WantedCategory, req.WantedSize)
-
 	utils.SuccessResponse(ctx, http.StatusOK, "Product want updated successfully", nil)
+
+	// NEW: Find and notify matches after want is saved
+	// Run in goroutine so it doesn't block the response
+	go func() {
+		productIDParsed, _ := uuid.Parse(productID)
+		notificationService := services.NewNotificationService(config.DB)
+		err := notificationService.FindAndNotifyProductMatches(productIDParsed)
+		if err != nil {
+			fmt.Printf("Error finding matches: %v\n", err)
+		}
+	}()
 }

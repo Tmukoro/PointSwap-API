@@ -38,96 +38,104 @@ func NewUploadHandler() (*UploadHandler, error) {
 // UploadImage uploads one or multiple images to Cloudinary
 // POST /api/upload/image?type=profile (single) or type=product (multiple)
 func (h *UploadHandler) UploadImage(c *gin.Context) {
-	// Get user ID from context (authentication check)
 	_, err := getUserIDFromContext(c)
 	if err != nil {
 		utils.ErrorResponse(c, http.StatusUnauthorized, "unauthorized")
 		return
 	}
 
-	// Get image type from query parameter
 	imageType := c.DefaultQuery("type", "general")
 
-	// Determine folder based on type
 	var folder string
 	var transformation string
 	var maxFiles int
+	var resourceType string // Add this
 
 	switch imageType {
 	case "profile":
 		folder = "pointswap/profiles"
 		transformation = "c_fill,g_face,h_400,w_400/q_auto,f_auto"
-		maxFiles = 1 // Profile: single image only
+		maxFiles = 1
+		resourceType = "image"
 	case "product":
 		folder = "pointswap/products"
 		transformation = "q_auto,f_auto"
-		maxFiles = 5 // Products: up to 5 images
+		maxFiles = 5
+		resourceType = "image"
 	case "chat":
 		folder = "pointswap/chat"
 		transformation = "q_auto,f_auto"
-		maxFiles = 1 // Chat: single image only
+		maxFiles = 1
+		resourceType = "image"
+	case "audio":
+		folder = "pointswap/audio"
+		transformation = ""
+		maxFiles = 1
+		resourceType = "video" // Cloudinary uses "video" for audio files
 	default:
 		folder = "pointswap/general"
 		transformation = "q_auto,f_auto"
 		maxFiles = 1
+		resourceType = "image"
 	}
 
-	// Parse multipart form
 	form, err := c.MultipartForm()
 	if err != nil {
 		utils.ErrorResponse(c, http.StatusBadRequest, "invalid form data")
 		return
 	}
 
-	files := form.File["images"] // Note: "images" (plural) for multiple files
-
+	files := form.File["images"]
 	if len(files) == 0 {
-		files = form.File["image"] // Fallback to singular
+		files = form.File["image"]
+	}
+	if len(files) == 0 {
+		files = form.File["audio"] // Add support for audio field
 	}
 
 	if len(files) == 0 {
-		utils.ErrorResponse(c, http.StatusBadRequest, "no image files provided")
+		utils.ErrorResponse(c, http.StatusBadRequest, "no files provided")
 		return
 	}
 
-	// Check if exceeds max files
 	if len(files) > maxFiles {
 		utils.ErrorResponse(c, http.StatusBadRequest, fmt.Sprintf("too many files, max %d allowed", maxFiles))
 		return
 	}
 
-	// Upload all files
 	var uploadedUrls []string
 	var publicIds []string
 
 	for _, file := range files {
-		// Validate file size (max 5MB per file)
-		if file.Size > 5*1024*1024 {
-			utils.ErrorResponse(c, http.StatusBadRequest, fmt.Sprintf("file %s too large, max 5MB", file.Filename))
+		if file.Size > 10*1024*1024 { // 10MB for audio
+			utils.ErrorResponse(c, http.StatusBadRequest, fmt.Sprintf("file %s too large, max 10MB", file.Filename))
 			return
 		}
 
-		// Open the uploaded file
 		fileContent, err := file.Open()
 		if err != nil {
-			utils.ErrorResponse(c, http.StatusInternalServerError, "failed to read image")
+			utils.ErrorResponse(c, http.StatusInternalServerError, "failed to read file")
 			return
 		}
 		defer fileContent.Close()
 
-		// Upload to Cloudinary
+		uploadParams := uploader.UploadParams{
+			Folder:       folder,
+			ResourceType: resourceType,
+		}
+
+		if transformation != "" {
+			uploadParams.Transformation = transformation
+		}
+
 		uploadResult, err := h.cloudinary.Upload.Upload(
 			context.Background(),
 			fileContent,
-			uploader.UploadParams{
-				Folder:         folder,
-				ResourceType:   "image",
-				Transformation: transformation,
-			},
+			uploadParams,
 		)
 
 		if err != nil {
-			utils.ErrorResponse(c, http.StatusInternalServerError, "failed to upload image")
+			utils.ErrorResponse(c, http.StatusInternalServerError, "failed to upload file")
 			return
 		}
 
@@ -135,11 +143,20 @@ func (h *UploadHandler) UploadImage(c *gin.Context) {
 		publicIds = append(publicIds, uploadResult.PublicID)
 	}
 
-	// Return response
-	utils.SuccessResponse(c, http.StatusOK, "images uploaded successfully", gin.H{
-		"image_urls": uploadedUrls,
-		"public_ids": publicIds,
-		"count":      len(uploadedUrls),
-		"type":       imageType,
-	})
+	// Return response (no duration here)
+	if len(uploadedUrls) == 1 {
+		utils.SuccessResponse(c, http.StatusOK, "file uploaded successfully", gin.H{
+			"image_url": uploadedUrls[0],
+			"public_id": publicIds[0],
+			"type":      imageType,
+		})
+	} else {
+		utils.SuccessResponse(c, http.StatusOK, "files uploaded successfully", gin.H{
+			"image_urls": uploadedUrls,
+			"public_ids": publicIds,
+			"count":      len(uploadedUrls),
+			"type":       imageType,
+		})
+	}
+
 }

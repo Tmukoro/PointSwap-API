@@ -2,8 +2,10 @@ package routes
 
 import (
 	"log"
+	"postswapapi/config"
 	"postswapapi/handlers"
 	"postswapapi/middleware"
+	"postswapapi/services"
 
 	"github.com/gin-gonic/gin"
 )
@@ -14,6 +16,8 @@ func SetupRouter(messageHandler *handlers.MessageHandler) *gin.Engine {
 	if err != nil {
 		log.Fatal("Failed to initialize upload handler:", err)
 	}
+	notificationService := services.NewNotificationService(config.DB)
+	notificationHandler := handlers.NewNotificationHandler(notificationService)
 
 	//User authentication
 	api := r.Group("/pointSwapApi/v1")
@@ -44,12 +48,6 @@ func SetupRouter(messageHandler *handlers.MessageHandler) *gin.Engine {
 		productWant.PUT("/:product_id/want", middleware.AuthMiddleWare(), handlers.UpdateProductWant)
 	}
 
-	notification := api.Group("/notifications")
-	{
-		notification.GET("", middleware.OptionalAuthMiddleWare(), handlers.GetMyNotifications)
-		notification.PATCH("/:notification_id", middleware.AuthMiddleWare(), handlers.MarkNotifcationAsRead)
-	}
-
 	// Message routes
 	messages := api.Group("/messages")
 	{
@@ -66,6 +64,15 @@ func SetupRouter(messageHandler *handlers.MessageHandler) *gin.Engine {
 		conversations.GET("/:conversation_id/messages", middleware.AuthMiddleWare(), messageHandler.GetConversationMessages)
 		conversations.PUT("/:conversation_id/read", middleware.AuthMiddleWare(), messageHandler.MarkConversationAsRead)
 	}
+
+	notifications := api.Group("/notifications")
+	{
+		notifications.GET("", middleware.AuthMiddleWare(), notificationHandler.GetUserNotifications)
+		notifications.PUT("/:id/read", middleware.AuthMiddleWare(), notificationHandler.MarkNotificationAsRead)
+		notifications.GET("/unread-count", middleware.AuthMiddleWare(), notificationHandler.GetUnreadCount)
+	}
+
+	api.POST("/push-token", middleware.AuthMiddleWare(), handlers.RegisterPushToken)
 
 	api.POST("/upload/image", middleware.AuthMiddleWare(), uploadHandler.UploadImage)
 

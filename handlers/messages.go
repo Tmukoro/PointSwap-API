@@ -67,7 +67,14 @@ func (h *MessageHandler) SendMessage(c *gin.Context) {
 		return
 	}
 
-	var req models.CreateMessageRequest
+	var req struct {
+		RecipientID   uuid.UUID `json:"recipient_id" binding:"required"`
+		MessageText   string    `json:"message_text"`
+		ImageURL      *string   `json:"image_url"`
+		AudioURL      *string   `json:"audio_url"`
+		AudioDuration *int      `json:"audio_duration"`
+	}
+
 	if err := c.ShouldBindJSON(&req); err != nil {
 		utils.ErrorResponse(c, http.StatusBadRequest, err.Error())
 		return
@@ -78,14 +85,13 @@ func (h *MessageHandler) SendMessage(c *gin.Context) {
 		return
 	}
 
-	// Validate: must have either text or image
 	trimmedText := strings.TrimSpace(req.MessageText)
-	if trimmedText == "" && (req.ImageUrl == nil || *req.ImageUrl == "") {
-		utils.ErrorResponse(c, http.StatusBadRequest, "message must have text or image")
+	if trimmedText == "" && (req.ImageURL == nil || *req.ImageURL == "") && (req.AudioURL == nil || *req.AudioURL == "") {
+		utils.ErrorResponse(c, http.StatusBadRequest, "message must have text, image, or audio")
 		return
 	}
 
-	message, err := h.service.SendMessage(senderID, req.RecipientID, trimmedText, req.ImageUrl)
+	message, err := h.service.SendMessage(senderID, req.RecipientID, trimmedText, req.ImageURL, req.AudioURL, req.AudioDuration)
 	if err != nil {
 		utils.ErrorResponse(c, http.StatusInternalServerError, "failed to send message")
 		return
@@ -113,8 +119,10 @@ func (h *MessageHandler) SendMessageToConversation(c *gin.Context) {
 	}
 
 	var req struct {
-		MessageText string  `json:"message_text"`
-		ImageURL    *string `json:"image_url"`
+		MessageText   string  `json:"message_text"`
+		ImageURL      *string `json:"image_url"`
+		AudioURL      *string `json:"audio_url"`
+		AudioDuration *int    `json:"audio_duration"`
 	}
 
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -122,14 +130,13 @@ func (h *MessageHandler) SendMessageToConversation(c *gin.Context) {
 		return
 	}
 
-	// Validate: must have either text or image (but trim text first)
 	trimmedText := strings.TrimSpace(req.MessageText)
-	if trimmedText == "" && (req.ImageURL == nil || *req.ImageURL == "") {
-		utils.ErrorResponse(c, http.StatusBadRequest, "message must have text or image")
+	if trimmedText == "" && (req.ImageURL == nil || *req.ImageURL == "") && (req.AudioURL == nil || *req.AudioURL == "") {
+		utils.ErrorResponse(c, http.StatusBadRequest, "message must have text, image, or audio")
 		return
 	}
 
-	message, err := h.service.SendMessageToConversation(conversationID, senderID, trimmedText, req.ImageURL)
+	message, err := h.service.SendMessageToConversation(conversationID, senderID, trimmedText, req.ImageURL, req.AudioURL, req.AudioDuration)
 	if err != nil {
 		utils.ErrorResponse(c, http.StatusInternalServerError, err.Error())
 		return

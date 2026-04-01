@@ -2,6 +2,7 @@ package services
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 	"os"
 	"postswapapi/models"
@@ -13,28 +14,26 @@ import (
 )
 
 type MessageService struct {
-	repo       *repository.MessageRepository
-	ablyClient *ably.Realtime
+	repo                *repository.MessageRepository
+	ablyClient          *ably.Realtime
+	notificationService *NotificationService
 }
 
-func NewMessageService(repo *repository.MessageRepository) (*MessageService, error) {
-	ablyAPIKey := os.Getenv("ABLY_KEY")
-	if ablyAPIKey == "" {
-		return nil, fmt.Errorf("ABLY_KEY environment variable not set")
+func NewMessageService(repo *repository.MessageRepository, db *sql.DB) (*MessageService, error) {
+	ablyKey := os.Getenv("ABLY_KEY")
+	if ablyKey == "" {
+		return nil, fmt.Errorf("ABLY_KEY not set in environment")
 	}
 
-	// Initialize Ably client
-	client, err := ably.NewRealtime(
-		ably.WithKey(ablyAPIKey),
-		ably.WithEchoMessages(false), // Don't echo messages back to sender
-	)
+	client, err := ably.NewRealtime(ably.WithKey(ablyKey))
 	if err != nil {
-		return nil, fmt.Errorf("failed to create ably client: %w", err)
+		return nil, fmt.Errorf("failed to create Ably client: %w", err)
 	}
 
 	return &MessageService{
-		repo:       repo,
-		ablyClient: client,
+		repo:                repo,
+		ablyClient:          client,
+		notificationService: NewNotificationService(db), // Now db is available
 	}, nil
 }
 
@@ -53,22 +52,18 @@ func (s *MessageService) GetOrCreateConversation(user1ID, user2ID uuid.UUID) (uu
 }
 
 // SendMessage creates a new message or starts a conversation
-func (s *MessageService) SendMessage(senderID, recipientID uuid.UUID, messageText string, imageURL *string) (*models.Message, error) {
-	// Get or create conversation
+func (s *MessageService) SendMessage(senderID, recipientID uuid.UUID, messageText string, imageURL *string, audioURL *string, audioDuration *int) (*models.Message, error) {
 	conversationID, err := s.repo.GetOrCreateConversation(senderID, recipientID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get or create conversation: %w", err)
 	}
 
-	// Save message to database
-	message, err := s.repo.CreateMessage(conversationID, senderID, messageText, imageURL)
+	message, err := s.repo.CreateMessage(conversationID, senderID, messageText, imageURL, audioURL, audioDuration)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create message: %w", err)
 	}
 
-	// Publish to Ably for real-time delivery
 	if err := s.publishMessageToAbly(conversationID, message); err != nil {
-		// Log error but don't fail the request - message is already saved
 		fmt.Printf("Warning: failed to publish message to Ably: %v\n", err)
 	}
 
@@ -76,9 +71,7 @@ func (s *MessageService) SendMessage(senderID, recipientID uuid.UUID, messageTex
 }
 
 // SendMessageToConversation sends a message to an existing conversation
-// Update SendMessageToConversation to accept imageURL
-func (s *MessageService) SendMessageToConversation(conversationID, senderID uuid.UUID, messageText string, imageURL *string) (*models.Message, error) {
-	// Verify sender is in conversation
+func (s *MessageService) SendMessageToConversation(conversationID, senderID uuid.UUID, messageText string, imageURL *string, audioURL *string, audioDuration *int) (*models.Message, error) {
 	isParticipant, err := s.repo.VerifyUserInConversation(conversationID, senderID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to verify participant: %w", err)
@@ -87,8 +80,7 @@ func (s *MessageService) SendMessageToConversation(conversationID, senderID uuid
 		return nil, fmt.Errorf("user is not a participant in this conversation")
 	}
 
-	// Save message to database
-	message, err := s.repo.CreateMessage(conversationID, senderID, messageText, imageURL)
+	message, err := s.repo.CreateMessage(conversationID, senderID, messageText, imageURL, audioURL, audioDuration)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create message: %w", err)
 	}
@@ -96,6 +88,26 @@ func (s *MessageService) SendMessageToConversation(conversationID, senderID uuid
 	// Publish to Ably for real-time delivery
 	if err := s.publishMessageToAbly(conversationID, message); err != nil {
 		fmt.Printf("Warning: failed to publish message to Ably: %v\n", err)
+	}
+
+	// Get recipient ID (the other participant)
+	recipientID, err := s.repo.GetOtherParticipant(conversationID, senderID)
+	if err != nil {
+		fmt.Printf("Warning: failed to get recipient for notification: %v\n", err)
+	} else {
+		// Get sender name
+		senderName, err := s.repo.GetUserName(senderID)
+		if err != nil {
+			senderName = "Someone"
+		}
+
+		// Send push notification (don't fail if this errors)
+		go func() {
+			err := s.notificationService.SendMessageNotification(recipientID, senderName, messageText, conversationID)
+			if err != nil {
+				fmt.Printf("Warning: failed to send push notification: %v\n", err)
+			}
+		}()
 	}
 
 	return message, nil
@@ -114,9 +126,16 @@ func (s *MessageService) publishMessageToAbly(conversationID uuid.UUID, message 
 		"created_at":      message.CreatedAt.Format(time.RFC3339),
 	}
 
-	// Add image_url if present
 	if message.ImageUrl != nil {
 		payload["image_url"] = *message.ImageUrl
+	}
+
+	if message.AudioURL != nil {
+		payload["audio_url"] = *message.AudioURL
+	}
+
+	if message.AudioDuration != nil {
+		payload["audio_duration"] = *message.AudioDuration
 	}
 
 	err := channel.Publish(context.Background(), "new_message", payload)

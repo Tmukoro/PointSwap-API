@@ -78,7 +78,11 @@ func (r *MessageRepository) GetOrCreateConversation(user1ID, user2ID uuid.UUID) 
 }
 
 // CreateMessage saves a new message to the database
-func (r *MessageRepository) CreateMessage(conversationID, senderID uuid.UUID, messageText string, imageURL *string) (*models.Message, error) {
+func (r *MessageRepository) CreateMessage(conversationID, senderID uuid.UUID, messageText string, imageURL *string, audioURL *string, audioDuration *int) (*models.Message, error) {
+	// If there's audio but no text, set default text
+	if messageText == "" && audioURL != nil {
+		messageText = "🎤 Voice message"
+	}
 	// If there's an image but no text, set default text
 	if messageText == "" && imageURL != nil {
 		messageText = "📷 Image"
@@ -89,15 +93,17 @@ func (r *MessageRepository) CreateMessage(conversationID, senderID uuid.UUID, me
 		ConversationID: conversationID,
 		SenderID:       senderID,
 		MessageText:    messageText,
-		ImageUrl:       imageURL, // Add this
+		ImageUrl:       imageURL,
+		AudioURL:       audioURL,
+		AudioDuration:  audioDuration,
 		IsRead:         false,
 		CreatedAt:      time.Now(),
 	}
 
 	query := `
-        INSERT INTO messages (id, conversation_id, sender_id, message_text, image_url, is_read, created_at)
-        VALUES ($1, $2, $3, $4, $5, $6, $7)
-        RETURNING id, conversation_id, sender_id, message_text, image_url, is_read, created_at
+        INSERT INTO messages (id, conversation_id, sender_id, message_text, image_url, audio_url, audio_duration, is_read, created_at)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+        RETURNING id, conversation_id, sender_id, message_text, image_url, audio_url, audio_duration, is_read, created_at
     `
 
 	err := r.db.QueryRow(query,
@@ -105,7 +111,9 @@ func (r *MessageRepository) CreateMessage(conversationID, senderID uuid.UUID, me
 		message.ConversationID,
 		message.SenderID,
 		message.MessageText,
-		message.ImageUrl, // Add this
+		message.ImageUrl,
+		message.AudioURL,
+		message.AudioDuration,
 		message.IsRead,
 		message.CreatedAt,
 	).Scan(
@@ -113,7 +121,9 @@ func (r *MessageRepository) CreateMessage(conversationID, senderID uuid.UUID, me
 		&message.ConversationID,
 		&message.SenderID,
 		&message.MessageText,
-		&message.ImageUrl, // Add this
+		&message.ImageUrl,
+		&message.AudioURL,
+		&message.AudioDuration,
 		&message.IsRead,
 		&message.CreatedAt,
 	)
@@ -130,24 +140,26 @@ func (r *MessageRepository) GetConversationMessages(conversationID uuid.UUID, li
 	messages := []models.MessageWithSender{}
 
 	query := `
-        SELECT 
-            m.id,
-            m.conversation_id,
-            m.sender_id,
-            CONCAT(u.first_name, ' ', u.last_name) as sender_name,
-            u.avatar_url as sender_avatar,
-            m.message_text,
-			m.image_url,
-            m.is_read,
-            m.created_at,
-            m.deleted_at
-        FROM messages m
-        INNER JOIN users u ON m.sender_id = u.user_id
-        WHERE m.conversation_id = $1 
-          AND m.deleted_at IS NULL
-        ORDER BY m.created_at DESC
-        LIMIT $2 OFFSET $3
-    `
+    SELECT 
+        m.id,
+        m.conversation_id,
+        m.sender_id,
+        CONCAT(u.first_name, ' ', u.last_name) as sender_name,
+        u.avatar_url as sender_avatar,
+        m.message_text,
+        m.image_url,
+        m.audio_url,
+        m.audio_duration,
+        m.is_read,
+        m.created_at,
+        m.deleted_at
+    FROM messages m
+    INNER JOIN users u ON m.sender_id = u.user_id
+    WHERE m.conversation_id = $1 
+      AND m.deleted_at IS NULL
+    ORDER BY m.created_at DESC
+    LIMIT $2 OFFSET $3
+`
 
 	rows, err := r.db.Query(query, conversationID, limit, offset)
 	if err != nil {
@@ -165,6 +177,8 @@ func (r *MessageRepository) GetConversationMessages(conversationID uuid.UUID, li
 			&msg.SenderAvatar,
 			&msg.MessageText,
 			&msg.ImageUrl,
+			&msg.AudioURL,
+			&msg.AudioDuration,
 			&msg.IsRead,
 			&msg.CreatedAt,
 			&msg.DeletedAt,
@@ -371,4 +385,28 @@ func (r *MessageRepository) DeleteMessage(messageID, userID uuid.UUID) error {
 	}
 
 	return nil
+}
+
+// GetOtherParticipant gets the other user in a conversation
+func (r *MessageRepository) GetOtherParticipant(conversationID, userID uuid.UUID) (uuid.UUID, error) {
+	var otherUserID uuid.UUID
+	query := `
+		SELECT user_id 
+		FROM conversation_participants 
+		WHERE conversation_id = $1 AND user_id != $2
+		LIMIT 1
+	`
+	err := r.db.QueryRow(query, conversationID, userID).Scan(&otherUserID)
+	return otherUserID, err
+}
+
+// GetUserName gets a user's full name
+func (r *MessageRepository) GetUserName(userID uuid.UUID) (string, error) {
+	var firstName, lastName string
+	query := `SELECT first_name, last_name FROM users WHERE user_id = $1`
+	err := r.db.QueryRow(query, userID).Scan(&firstName, &lastName)
+	if err != nil {
+		return "", err
+	}
+	return firstName + " " + lastName, nil
 }

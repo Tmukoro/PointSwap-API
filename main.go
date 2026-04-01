@@ -25,7 +25,7 @@ func main() {
 
 	// Initialize message components
 	messageRepo := repository.NewMessageRepository(config.DB)
-	messageService, err := services.NewMessageService(messageRepo)
+	messageService, err := services.NewMessageService(messageRepo, config.DB)
 	if err != nil {
 		log.Fatal("Failed to initialize message service:", err)
 	}
@@ -43,5 +43,4 @@ func main() {
 
 	r := routes.SetupRouter(messageHandler)
 	r.Run(":" + port)
-
 }
