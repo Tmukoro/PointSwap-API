@@ -13,7 +13,10 @@ type Users struct {
 	First_Name    string     `json:"first_name" db:"first_name"`
 	Last_Name     string     `json:"last_name" db:"last_name"`
 	Avatar_url    *string    `json:"avatar_url" db:"avatar_url"`
-	Location      string     `json:"location" db:"location"`
+	LocationState *string    `json:"location_state,omitempty" db:"location_state"`
+	CampName      *string    `json:"camp_name,omitempty" db:"camp_name"`
+	Latitude      *float64   `json:"latitude,omitempty" db:"latitude"`
+	Longitude     *float64   `json:"longitude,omitempty" db:"longitude"`
 	FCM_token     *string    `json:"fcm_token" db:"fcm_token"`
 	Created_at    time.Time  `json:"created_at" db:"created_at"`
 	Updated_at    time.Time  `json:"updated_at" db:"updated_at"`
@@ -23,7 +26,7 @@ type Users struct {
 
 type UserRegistrationRequest struct {
 	Email    string `binding:"required,email"`
-	Password string `binding:"required,min=10"`
+	Password string `binding:"required"`
 }
 
 type UserProfileSetUpRequest struct {
@@ -36,9 +39,16 @@ type UserLoginRequest struct {
 	Password string ` json:"password" binding:"required,min=10"`
 }
 
-type UserLocationRequest struct {
-	Location string `json:"location" binding:"required"`
+type SetLocationRequest struct {
+	Latitude  float64 `json:"latitude" binding:"required"`
+	Longitude float64 `json:"longitude" binding:"required"`
 }
+
+type SetLocationResponse struct {
+	LocationState string `json:"location_state"`
+	CampName      string `json:"camp_name"`
+}
+
 type UserBlocks struct {
 	Block_ID   uuid.UUID `json:"block_id" db:"block_id"`
 	Blokcer_ID uuid.UUID `json:"blocker_id" db:"blocker_id"`

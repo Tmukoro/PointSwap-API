@@ -24,14 +24,27 @@ func Register(ctx *gin.Context) {
 		return
 	}
 
+	// password validation
+	if len(req.Password) < 10 {
+		utils.ErrorResponse(ctx, http.StatusUnauthorized, "Password must be at least 14 characters long")
+		return
+	}
+
 	//Check if the user exists in the db when registering
 	var existingID uuid.UUID
 
-	err := config.DB.QueryRow("SELECT user_id FROM users WHERE email = $1",
-		req.Email).Scan(&existingID)
+	err := config.DB.QueryRow(
+		"SELECT user_id FROM users WHERE email = $1",
+		req.Email,
+	).Scan(&existingID)
+
+	if err == nil {
+		utils.ErrorResponse(ctx, http.StatusConflict, "User already exists")
+		return
+	}
 
 	if err != sql.ErrNoRows {
-		utils.ErrorResponse(ctx, http.StatusConflict, err.Error())
+		utils.ErrorResponse(ctx, http.StatusInternalServerError, "Database error")
 		return
 	}
 
@@ -175,50 +188,6 @@ func Login(ctx *gin.Context) {
 }
 
 //Get location of the user
-
-func GetLocation(ctx *gin.Context) {
-	var req models.UserLocationRequest
-
-	if err := ctx.ShouldBind(&req); err != nil {
-		utils.ErrorResponse(ctx, http.StatusBadRequest, err.Error())
-		return
-	}
-
-	presentUser, exists := ctx.Get("User")
-
-	if !exists {
-		utils.ErrorResponse(ctx, http.StatusUnauthorized, "User not authentiticated")
-		return
-	}
-
-	user, ok := presentUser.(models.Users)
-
-	if !ok {
-		utils.ErrorResponse(ctx, http.StatusInternalServerError, "Invalid User")
-		return
-	}
-
-	location := models.Users{
-		Location: req.Location,
-	}
-
-	_, err := config.DB.Exec(`
-	   UPDATE users
-	   SET location = $1 
-	   WHERE user_id = $2
-	`, req.Location, user.User_ID)
-
-	if err != nil {
-		utils.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to add location")
-		return
-	}
-
-	utils.SuccessResponse(ctx, http.StatusCreated, "location Added", gin.H{
-		"location": location,
-		"user":     user,
-	})
-
-}
 
 //Handler to check if the user exists
 

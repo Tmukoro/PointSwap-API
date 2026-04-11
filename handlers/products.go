@@ -131,55 +131,51 @@ func CreateProduct(ctx *gin.Context) {
 //function to get products uploaded by users in the main page
 
 func GetProducts(ctx *gin.Context) {
-	//parse pagination parameters
-
 	category := ctx.Query("category")
+	filterByLocation := ctx.DefaultQuery("filter_location", "true") == "true" // New: location filter toggle
 
 	presentUser, exist := ctx.Get("User")
 
 	var currentUserID uuid.UUID
-	// var currentUserLocation string
+	var currentUserLocation *string
 
 	if exist {
 		if user, ok := presentUser.(models.Users); ok {
 			currentUserID = user.User_ID
-			// currentUserLocation = user.Location
+			currentUserLocation = user.LocationState // Get user's location
 		}
 	}
 
-	//If user doesn't have location then present an empty feed
-
-	// if currentUserLocation == "" {
-	// 	utils.SuccessResponse(ctx, http.StatusOK, "Product successfully retrieved", gin.H{
-	// 	})
-	// 	return
-	// }
-
-	//Query for what to see in the main feed
-
+	// Query for main feed
 	var query string
 	var args []any
 	argIndex := 1
 
 	query = `
-	   SELECT p.product_id, p.title, p.estimated_size, p.created_at, pp.image_url
-	   FROM products p LEFT JOIN product_photos pp ON p.product_id = pp.product_id AND pp.display_order = 1
-	   INNER JOIN users u ON p.seller_id  = u.user_id
+	   SELECT p.product_id, p.title, p.estimated_size, p.created_at, pp.image_url, u.location_state
+	   FROM products p 
+	   LEFT JOIN product_photos pp ON p.product_id = pp.product_id AND pp.display_order = 1
+	   INNER JOIN users u ON p.seller_id = u.user_id
 	   WHERE p.status = $1
 	`
 	args = append(args, "active")
-	argIndex += 1 //+2 if you add location filtering
+	argIndex++
 
-	//exclude current signed in users product from the feed
-
+	// Exclude current user's products
 	if currentUserID != uuid.Nil {
-		query += "AND p.seller_id != $" + strconv.Itoa(argIndex)
+		query += " AND p.seller_id != $" + strconv.Itoa(argIndex)
 		args = append(args, currentUserID)
 		argIndex++
 	}
 
-	//Category filter in the feed when applied
+	// Location filter - only show products from same location
+	if filterByLocation && currentUserLocation != nil && *currentUserLocation != "" {
+		query += " AND u.location_state = $" + strconv.Itoa(argIndex)
+		args = append(args, *currentUserLocation)
+		argIndex++
+	}
 
+	// Category filter
 	if category != "" {
 		query += " AND p.category = $" + strconv.Itoa(argIndex)
 		args = append(args, category)
@@ -197,8 +193,7 @@ func GetProducts(ctx *gin.Context) {
 
 	defer rows.Close()
 
-	//Simple structure for the feed
-
+	// Parse products
 	var products []gin.H
 	for rows.Next() {
 		var productId uuid.UUID
@@ -206,8 +201,9 @@ func GetProducts(ctx *gin.Context) {
 		var estimatedSize *string
 		var createdAt time.Time
 		var imageUrl sql.NullString
+		var sellerLocation sql.NullString
 
-		err := rows.Scan(&productId, &title, &estimatedSize, &createdAt, &imageUrl)
+		err := rows.Scan(&productId, &title, &estimatedSize, &createdAt, &imageUrl, &sellerLocation)
 
 		if err != nil {
 			utils.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to parse products")
@@ -219,24 +215,26 @@ func GetProducts(ctx *gin.Context) {
 			"title":          title,
 			"estimated_size": estimatedSize,
 			"created_at":     createdAt,
-			"image_url":      imageUrl,
 		}
 
 		if imageUrl.Valid {
 			product["image_url"] = imageUrl.String
 		}
 
+		if sellerLocation.Valid {
+			product["seller_location"] = sellerLocation.String
+		}
+
 		products = append(products, product)
 	}
 
-	//Checking if there are more items when scrolling
-
 	response := gin.H{
-		"items": products,
+		"items":           products,
+		"filtered_by":     currentUserLocation, // Show what location is being filtered
+		"location_active": filterByLocation,
 	}
 
 	utils.SuccessResponse(ctx, http.StatusOK, "Products retrieved successfully", response)
-
 }
 
 //Get product via ID (Basically when you tap on the product)

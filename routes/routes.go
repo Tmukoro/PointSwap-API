@@ -25,7 +25,7 @@ func SetupRouter(messageHandler *handlers.MessageHandler) *gin.Engine {
 	api.POST("/register", handlers.Register)
 	api.POST("/profileSetUp", middleware.AuthMiddleWare(), handlers.UserProfileSetUp)
 	api.POST("/login", handlers.Login)
-	api.POST("/location", middleware.AuthMiddleWare(), handlers.GetLocation)
+	api.POST("/location/set", middleware.AuthMiddleWare(), handlers.DetermineLocation)
 	api.PUT("/users/status", middleware.AuthMiddleWare(), handlers.UpdateOnlineStatus)
 	api.GET("/users/:user_id/status", middleware.OptionalAuthMiddleWare(), handlers.GetUserStatus)
 

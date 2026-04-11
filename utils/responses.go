@@ -10,7 +10,6 @@ type Response struct {
 	Data    any    `json:"data,omitempty"`
 }
 
-
 //Function to relay if the operation was a success
 func SuccessResponse(ctx *gin.Context, status int, message string, data any) {
 	ctx.JSON(status, Response{
