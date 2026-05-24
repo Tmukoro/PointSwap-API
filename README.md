@@ -700,7 +700,7 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 ## 👨‍💻 Author
 
 **Mukoro Oghenetega**
-- LinkedIn: [linkedin.com/in/yourprofile](https://www.linkedin.com/in/oghenetega-mukoro)
+- LinkedIn: [linkedin.com/in/oghenetega-mukoro](https://www.linkedin.com/in/oghenetega-mukoro)
 - Email: tmukoro62@gmail.com
 
 ---
@@ -710,4 +710,4 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 
 ---
 
-_Note: This is the backend repository. For the frontend (React Native), see [pointswap-app](https://github.com/yourusername/pointswap-app)_
+_Note: This is the backend repository. For the frontend (React Native), see [pointswap-app](https://github.com/Tmukoro/PointSwap-App)_
